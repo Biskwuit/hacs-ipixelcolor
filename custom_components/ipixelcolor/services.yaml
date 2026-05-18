@@ -1,0 +1,183 @@
+send_text:
+  name: Envoyer du texte
+  description: Afficher un message texte sur la matrice LED iPixel Color.
+  fields:
+    entity_id:
+      name: Entité
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+          integration: ipixelcolor
+    text:
+      name: Texte
+      description: Le message à afficher sur la matrice.
+      required: true
+      example: "Hello !"
+      selector:
+        text:
+    animation:
+      name: Animation
+      description: Type de défilement du texte.
+      default: 0
+      selector:
+        select:
+          options:
+            - label: "Statique"
+              value: "0"
+            - label: "Défilement gauche"
+              value: "1"
+            - label: "Défilement droite"
+              value: "2"
+            - label: "Défilement haut"
+              value: "3"
+            - label: "Défilement bas"
+              value: "4"
+    speed:
+      name: Vitesse
+      description: Vitesse de défilement (0 = lent, 100 = rapide).
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+          mode: slider
+    color:
+      name: Couleur du texte
+      description: Couleur en hexadécimal (sans #). Ex : ff0000 pour rouge.
+      default: "ffffff"
+      example: "ff6600"
+      selector:
+        text:
+    font:
+      name: Police
+      description: Nom de la police à utiliser.
+      default: "CUSONG"
+      selector:
+        select:
+          options:
+            - "CUSONG"
+            - "SYSTEM"
+    rainbow_mode:
+      name: Mode arc-en-ciel
+      description: Afficher le texte en couleurs arc-en-ciel.
+      default: false
+      selector:
+        boolean:
+    save_slot:
+      name: Emplacement de sauvegarde
+      description: Slot mémoire où sauvegarder le contenu (0 à 9).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 9
+          step: 1
+          mode: box
+
+send_image:
+  name: Envoyer une image
+  description: Afficher une image ou un GIF animé sur la matrice LED.
+  fields:
+    entity_id:
+      name: Entité
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+          integration: ipixelcolor
+    path:
+      name: Chemin du fichier
+      description: Chemin absolu vers l'image ou le GIF sur le serveur Home Assistant.
+      required: true
+      example: "/config/www/animation.gif"
+      selector:
+        text:
+    save_slot:
+      name: Emplacement de sauvegarde
+      description: Slot mémoire où sauvegarder le contenu (0 à 9).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 9
+          step: 1
+          mode: box
+
+set_clock:
+  name: Mode horloge
+  description: Basculer l'appareil en mode affichage horloge.
+  fields:
+    entity_id:
+      name: Entité
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+          integration: ipixelcolor
+    style:
+      name: Style d'horloge
+      description: Apparence du cadran.
+      default: 1
+      selector:
+        number:
+          min: 1
+          max: 5
+          step: 1
+          mode: box
+    show_date:
+      name: Afficher la date
+      description: Afficher la date en plus de l'heure.
+      default: true
+      selector:
+        boolean:
+    format_24:
+      name: Format 24h
+      description: Utiliser le format 24 heures (sinon 12h AM/PM).
+      default: true
+      selector:
+        boolean:
+
+set_pixel:
+  name: Définir un pixel
+  description: Changer la couleur d'un pixel spécifique sur la matrice.
+  fields:
+    entity_id:
+      name: Entité
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+          integration: ipixelcolor
+    x:
+      name: Position X
+      description: Position horizontale du pixel (0 = gauche).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 63
+          step: 1
+          mode: box
+    y:
+      name: Position Y
+      description: Position verticale du pixel (0 = haut).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 31
+          step: 1
+          mode: box
+    color:
+      name: Couleur
+      description: Couleur du pixel en hexadécimal (sans #). Ex : ff0000 pour rouge.
+      required: true
+      example: "ff0000"
+      selector:
+        text:
