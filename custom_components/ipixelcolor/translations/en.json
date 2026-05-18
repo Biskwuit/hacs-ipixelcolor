@@ -1,0 +1,75 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "iPixel Color LED Matrix",
+        "description": "{device_count} iPixel device(s) found via Bluetooth scan. Select one from the list or enter an address manually.",
+        "data": {
+          "address": "Bluetooth Address",
+          "name": "Device Name"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "iPixel Color detected",
+        "description": "Found **{name}** at `{address}`. Confirm to add this device.",
+        "data": {
+          "name": "Device Name"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to the device. Make sure it is powered on and in range.",
+      "no_devices_found": "No iPixel devices found. Enter the Bluetooth address manually.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This device is already configured.",
+      "no_devices_found": "No iPixel devices found nearby."
+    }
+  },
+  "services": {
+    "send_text": {
+      "name": "Send Text",
+      "description": "Display a text message on the LED matrix.",
+      "fields": {
+        "entity_id": { "name": "Entity", "description": "The iPixel Color light entity." },
+        "text": { "name": "Text", "description": "The message to display." },
+        "animation": { "name": "Animation", "description": "Scroll animation (0=static, 1=left, 2=right, 3=up, 4=down)." },
+        "speed": { "name": "Speed", "description": "Scroll speed (0-100)." },
+        "color": { "name": "Color", "description": "Text color in hex (e.g. ff0000)." },
+        "font": { "name": "Font", "description": "Font name (e.g. CUSONG)." },
+        "rainbow_mode": { "name": "Rainbow Mode", "description": "Enable rainbow color mode (0 or 1)." },
+        "save_slot": { "name": "Save Slot", "description": "Slot index to save the content (0-9)." }
+      }
+    },
+    "send_image": {
+      "name": "Send Image",
+      "description": "Display an image or GIF on the LED matrix.",
+      "fields": {
+        "entity_id": { "name": "Entity", "description": "The iPixel Color light entity." },
+        "path": { "name": "File Path", "description": "Absolute path to the image or GIF file on the HA host." },
+        "save_slot": { "name": "Save Slot", "description": "Slot index to save the content (0-9)." }
+      }
+    },
+    "set_clock": {
+      "name": "Set Clock Mode",
+      "description": "Switch the device to clock display mode.",
+      "fields": {
+        "entity_id": { "name": "Entity", "description": "The iPixel Color light entity." },
+        "style": { "name": "Clock Style", "description": "Clock face style (1-5)." },
+        "show_date": { "name": "Show Date", "description": "Whether to show the date." },
+        "format_24": { "name": "24h Format", "description": "Use 24-hour time format." }
+      }
+    },
+    "set_pixel": {
+      "name": "Set Pixel",
+      "description": "Set the color of a specific pixel.",
+      "fields": {
+        "entity_id": { "name": "Entity", "description": "The iPixel Color light entity." },
+        "x": { "name": "X", "description": "Horizontal pixel position." },
+        "y": { "name": "Y", "description": "Vertical pixel position." },
+        "color": { "name": "Color", "description": "Pixel color in hex (e.g. ff0000)." }
+      }
+    }
+  }
+}

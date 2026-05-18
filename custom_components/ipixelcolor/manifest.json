@@ -1,0 +1,18 @@
+{
+  "domain": "ipixelcolor",
+  "name": "iPixel Color LED Matrix",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://lucagoc.github.io/pypixelcolor/latest/",
+  "issue_tracker": "https://github.com/your-username/hacs-ipixelcolor/issues",
+  "requirements": ["pypixelcolor>=0.4.0", "bleak>=0.21.0"],
+  "bluetooth": [
+    {
+      "local_name": "iPixel*",
+      "connectable": true
+    }
+  ],
+  "dependencies": ["bluetooth"],
+  "codeowners": ["@your-username"],
+  "iot_class": "local_polling"
+}

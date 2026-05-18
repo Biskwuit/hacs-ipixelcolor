@@ -1,0 +1,75 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "iPixel Color LED Matrix",
+        "description": "{device_count} appareil(s) iPixel trouvé(s) via Bluetooth. Sélectionnez-en un ou entrez l'adresse manuellement.",
+        "data": {
+          "address": "Adresse Bluetooth",
+          "name": "Nom de l'appareil"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "iPixel Color détecté",
+        "description": "Appareil **{name}** trouvé à l'adresse `{address}`. Confirmez pour l'ajouter.",
+        "data": {
+          "name": "Nom de l'appareil"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Impossible de se connecter à l'appareil. Vérifiez qu'il est allumé et à portée.",
+      "no_devices_found": "Aucun appareil iPixel trouvé. Entrez l'adresse Bluetooth manuellement.",
+      "unknown": "Erreur inattendue."
+    },
+    "abort": {
+      "already_configured": "Cet appareil est déjà configuré.",
+      "no_devices_found": "Aucun appareil iPixel trouvé à proximité."
+    }
+  },
+  "services": {
+    "send_text": {
+      "name": "Envoyer du texte",
+      "description": "Afficher un message sur la matrice LED.",
+      "fields": {
+        "entity_id": { "name": "Entité", "description": "L'entité lumière iPixel Color." },
+        "text": { "name": "Texte", "description": "Le message à afficher." },
+        "animation": { "name": "Animation", "description": "Animation (0=statique, 1=gauche, 2=droite, 3=haut, 4=bas)." },
+        "speed": { "name": "Vitesse", "description": "Vitesse de défilement (0-100)." },
+        "color": { "name": "Couleur", "description": "Couleur du texte en hex (ex: ff0000)." },
+        "font": { "name": "Police", "description": "Nom de la police (ex: CUSONG)." },
+        "rainbow_mode": { "name": "Mode arc-en-ciel", "description": "Activer les couleurs arc-en-ciel (0 ou 1)." },
+        "save_slot": { "name": "Emplacement", "description": "Emplacement de sauvegarde (0-9)." }
+      }
+    },
+    "send_image": {
+      "name": "Envoyer une image",
+      "description": "Afficher une image ou un GIF sur la matrice LED.",
+      "fields": {
+        "entity_id": { "name": "Entité", "description": "L'entité lumière iPixel Color." },
+        "path": { "name": "Chemin du fichier", "description": "Chemin absolu vers l'image ou GIF sur le serveur HA." },
+        "save_slot": { "name": "Emplacement", "description": "Emplacement de sauvegarde (0-9)." }
+      }
+    },
+    "set_clock": {
+      "name": "Mode horloge",
+      "description": "Basculer l'appareil en mode affichage horloge.",
+      "fields": {
+        "entity_id": { "name": "Entité", "description": "L'entité lumière iPixel Color." },
+        "style": { "name": "Style d'horloge", "description": "Style du cadran (1-5)." },
+        "show_date": { "name": "Afficher la date", "description": "Afficher ou non la date." },
+        "format_24": { "name": "Format 24h", "description": "Utiliser le format 24 heures." }
+      }
+    },
+    "set_pixel": {
+      "name": "Définir un pixel",
+      "description": "Changer la couleur d'un pixel spécifique.",
+      "fields": {
+        "entity_id": { "name": "Entité", "description": "L'entité lumière iPixel Color." },
+        "x": { "name": "X", "description": "Position horizontale du pixel." },
+        "y": { "name": "Y", "description": "Position verticale du pixel." },
+        "color": { "name": "Couleur", "description": "Couleur du pixel en hex (ex: ff0000)." }
+      }
+    }
+  }
+}
