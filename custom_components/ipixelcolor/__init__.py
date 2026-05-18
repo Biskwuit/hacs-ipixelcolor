@@ -1,17 +1,12 @@
 """iPixel Color LED Matrix integration for Home Assistant."""
 from __future__ import annotations
 
-import asyncio
 import logging
-from typing import Any
-
-import pypixelcolor
-from pypixelcolor import AsyncClient
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, ServiceValidationError
+from homeassistant.helpers import entity_registry as er
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
 
@@ -31,6 +26,10 @@ from .const import (
 from .coordinator import IPixelColorCoordinator
 
 _LOGGER = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Service schemas — entity_id is the light entity of the target device
+# ---------------------------------------------------------------------------
 
 SEND_TEXT_SCHEMA = vol.Schema(
     {
@@ -84,6 +83,51 @@ SET_PIXEL_SCHEMA = vol.Schema(
 )
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _coordinator_for_entity(
+    hass: HomeAssistant, entity_id: str
+) -> IPixelColorCoordinator:
+    """
+    Resolve an entity_id to its IPixelColorCoordinator.
+
+    Works by looking up the entity in the entity registry to find its
+    config_entry_id, then fetching the coordinator from hass.data.
+
+    Raises ServiceValidationError if the entity or coordinator can't be found.
+    """
+    ent_reg = er.async_get(hass)
+    entry = ent_reg.async_get(entity_id)
+
+    if entry is None:
+        raise ServiceValidationError(
+            f"Entity '{entity_id}' not found in the entity registry."
+        )
+
+    config_entry_id = entry.config_entry_id
+    if config_entry_id is None:
+        raise ServiceValidationError(
+            f"Entity '{entity_id}' is not associated with a config entry."
+        )
+
+    coordinator: IPixelColorCoordinator | None = (
+        hass.data.get(DOMAIN, {}).get(config_entry_id)
+    )
+    if coordinator is None:
+        raise ServiceValidationError(
+            f"No active iPixel Color coordinator found for entity '{entity_id}'. "
+            "Is the device configured and connected?"
+        )
+
+    return coordinator
+
+
+# ---------------------------------------------------------------------------
+# Setup / teardown
+# ---------------------------------------------------------------------------
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up iPixel Color from a config entry."""
     address = entry.data[CONF_ADDRESS]
@@ -93,80 +137,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_connect()
     except Exception as ex:
-        raise ConfigEntryNotReady(f"Cannot connect to device at {address}: {ex}") from ex
+        raise ConfigEntryNotReady(
+            f"Cannot connect to iPixel Color device at {address}: {ex}"
+        ) from ex
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
-    # Register services
-    async def handle_send_text(call: ServiceCall) -> None:
-        """Handle send_text service call."""
-        entity_id = call.data["entity_id"]
-        coord = _get_coordinator_from_entity(hass, entity_id)
-        if coord:
-            await coord.async_send_text(
-                text=call.data["text"],
-                animation=call.data.get("animation", DEFAULT_ANIMATION),
-                speed=call.data.get("speed", DEFAULT_SPEED),
-                color=call.data.get("color", DEFAULT_COLOR),
-                font=call.data.get("font", DEFAULT_FONT),
-                rainbow_mode=call.data.get("rainbow_mode", 0),
-                save_slot=call.data.get("save_slot", 0),
-            )
-
-    async def handle_send_image(call: ServiceCall) -> None:
-        """Handle send_image service call."""
-        entity_id = call.data["entity_id"]
-        coord = _get_coordinator_from_entity(hass, entity_id)
-        if coord:
-            await coord.async_send_image(
-                path=call.data["path"],
-                save_slot=call.data.get("save_slot", 0),
-            )
-
-    async def handle_set_clock(call: ServiceCall) -> None:
-        """Handle set_clock service call."""
-        entity_id = call.data["entity_id"]
-        coord = _get_coordinator_from_entity(hass, entity_id)
-        if coord:
-            await coord.async_set_clock(
-                style=call.data.get("style", 1),
-                show_date=call.data.get("show_date", True),
-                format_24=call.data.get("format_24", True),
-            )
-
-    async def handle_set_pixel(call: ServiceCall) -> None:
-        """Handle set_pixel service call."""
-        entity_id = call.data["entity_id"]
-        coord = _get_coordinator_from_entity(hass, entity_id)
-        if coord:
-            await coord.async_set_pixel(
-                x=call.data["x"],
-                y=call.data["y"],
-                color=call.data["color"],
-            )
-
+    # Register domain-level services only once (first entry wins)
     if not hass.services.has_service(DOMAIN, SERVICE_SEND_TEXT):
-        hass.services.async_register(DOMAIN, SERVICE_SEND_TEXT, handle_send_text, schema=SEND_TEXT_SCHEMA)
-        hass.services.async_register(DOMAIN, SERVICE_SEND_IMAGE, handle_send_image, schema=SEND_IMAGE_SCHEMA)
-        hass.services.async_register(DOMAIN, SERVICE_SET_CLOCK, handle_set_clock, schema=SET_CLOCK_SCHEMA)
-        hass.services.async_register(DOMAIN, SERVICE_SET_PIXEL, handle_set_pixel, schema=SET_PIXEL_SCHEMA)
+        _register_services(hass)
 
     return True
-
-
-def _get_coordinator_from_entity(hass: HomeAssistant, entity_id: str) -> IPixelColorCoordinator | None:
-    """Find the coordinator associated with an entity."""
-    for coord in hass.data.get(DOMAIN, {}).values():
-        if isinstance(coord, IPixelColorCoordinator):
-            if entity_id.startswith(f"{DOMAIN}.") or any(
-                entity_id in str(coord.config_entry.entry_id) for _ in [None]
-            ):
-                return coord
-    # Fallback: return first coordinator
-    coords = [v for v in hass.data.get(DOMAIN, {}).values() if isinstance(v, IPixelColorCoordinator)]
-    return coords[0] if coords else None
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -177,4 +160,57 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         coordinator: IPixelColorCoordinator = hass.data[DOMAIN].pop(entry.entry_id)
         await coordinator.async_disconnect()
 
+    # Remove services when no more entries are loaded
+    if not hass.data.get(DOMAIN):
+        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_IMAGE, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
+            hass.services.async_remove(DOMAIN, svc)
+
     return unload_ok
+
+
+# ---------------------------------------------------------------------------
+# Service handlers
+# ---------------------------------------------------------------------------
+
+def _register_services(hass: HomeAssistant) -> None:
+    """Register all iPixel Color services."""
+
+    async def handle_send_text(call: ServiceCall) -> None:
+        coord = _coordinator_for_entity(hass, call.data["entity_id"])
+        await coord.async_send_text(
+            text=call.data["text"],
+            animation=call.data["animation"],
+            speed=call.data["speed"],
+            color=call.data["color"],
+            font=call.data["font"],
+            rainbow_mode=call.data["rainbow_mode"],
+            save_slot=call.data["save_slot"],
+        )
+
+    async def handle_send_image(call: ServiceCall) -> None:
+        coord = _coordinator_for_entity(hass, call.data["entity_id"])
+        await coord.async_send_image(
+            path=call.data["path"],
+            save_slot=call.data["save_slot"],
+        )
+
+    async def handle_set_clock(call: ServiceCall) -> None:
+        coord = _coordinator_for_entity(hass, call.data["entity_id"])
+        await coord.async_set_clock(
+            style=call.data["style"],
+            show_date=call.data["show_date"],
+            format_24=call.data["format_24"],
+        )
+
+    async def handle_set_pixel(call: ServiceCall) -> None:
+        coord = _coordinator_for_entity(hass, call.data["entity_id"])
+        await coord.async_set_pixel(
+            x=call.data["x"],
+            y=call.data["y"],
+            color=call.data["color"],
+        )
+
+    hass.services.async_register(DOMAIN, SERVICE_SEND_TEXT, handle_send_text, schema=SEND_TEXT_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SEND_IMAGE, handle_send_image, schema=SEND_IMAGE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SET_CLOCK, handle_set_clock, schema=SET_CLOCK_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SET_PIXEL, handle_set_pixel, schema=SET_PIXEL_SCHEMA)
