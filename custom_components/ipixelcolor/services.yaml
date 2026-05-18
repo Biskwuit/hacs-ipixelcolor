@@ -9,7 +9,6 @@ send_text:
       selector:
         entity:
           domain: light
-          integration: ipixelcolor
     text:
       name: Texte
       description: Le message à afficher sur la matrice.
@@ -88,7 +87,6 @@ send_image:
       selector:
         entity:
           domain: light
-          integration: ipixelcolor
     path:
       name: Chemin du fichier
       description: Chemin absolu vers l'image ou le GIF sur le serveur Home Assistant.
@@ -118,7 +116,6 @@ set_clock:
       selector:
         entity:
           domain: light
-          integration: ipixelcolor
     style:
       name: Style d'horloge
       description: Apparence du cadran.
@@ -153,7 +150,6 @@ set_pixel:
       selector:
         entity:
           domain: light
-          integration: ipixelcolor
     x:
       name: Position X
       description: Position horizontale du pixel (0 = gauche).
