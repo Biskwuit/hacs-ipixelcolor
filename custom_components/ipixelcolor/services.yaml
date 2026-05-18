@@ -105,6 +105,36 @@ send_image:
           step: 1
           mode: box
 
+send_media_cover:
+  name: Envoyer la cover du lecteur musical
+  description: Télécharge et affiche la cover de l'album actuellement en lecture sur la matrice LED.
+  fields:
+    ipixel_entity_id:
+      name: Entité iPixel
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+    media_player_entity_id:
+      name: Lecteur musical
+      description: L'entité media_player (ex. Music Assistant) dont récupérer la cover.
+      required: true
+      example: "media_player.music_assistant"
+      selector:
+        entity:
+          domain: media_player
+    save_slot:
+      name: Emplacement de sauvegarde
+      description: Slot mémoire où sauvegarder la cover (0 à 9).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 9
+          step: 1
+          mode: box
+
 set_clock:
   name: Mode horloge
   description: Basculer l'appareil en mode affichage horloge.

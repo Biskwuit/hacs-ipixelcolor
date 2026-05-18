@@ -19,6 +19,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_SEND_IMAGE,
+    SERVICE_SEND_MEDIA_COVER,
     SERVICE_SEND_TEXT,
     SERVICE_SET_CLOCK,
     SERVICE_SET_PIXEL,
@@ -82,6 +83,16 @@ SET_PIXEL_SCHEMA = vol.Schema(
     }
 )
 
+SEND_MEDIA_COVER_SCHEMA = vol.Schema(
+    {
+        vol.Required("ipixel_entity_id"): cv.entity_id,
+        vol.Required("media_player_entity_id"): cv.entity_id,
+        vol.Optional("save_slot", default=0): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=9)
+        ),
+    }
+)
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -124,6 +135,69 @@ def _coordinator_for_entity(
     return coordinator
 
 
+async def _fetch_and_save_media_cover(
+    hass: HomeAssistant, media_player_entity_id: str
+) -> str:
+    """
+    Fetch the cover art from a media player and save it locally.
+    
+    Returns the path to the saved file on disk.
+    Raises ServiceValidationError if cover can't be found or downloaded.
+    """
+    import asyncio
+    import aiohttp
+    import tempfile
+    from pathlib import Path
+    
+    state = hass.states.get(media_player_entity_id)
+    if state is None:
+        raise ServiceValidationError(
+            f"Media player entity '{media_player_entity_id}' not found."
+        )
+
+    entity_picture = state.attributes.get("entity_picture")
+    if not entity_picture:
+        raise ServiceValidationError(
+            f"No cover art found for '{media_player_entity_id}'. "
+            "Is music currently playing?"
+        )
+
+    # Build absolute URL if it's a relative path
+    if entity_picture.startswith("/"):
+        # Get HA's configured external URL or fallback to localhost
+        base_url = hass.config.external_url or "http://localhost:8123"
+        cover_url = f"{base_url}{entity_picture}"
+    else:
+        cover_url = entity_picture
+
+    # Download the cover image
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(cover_url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+                if resp.status != 200:
+                    raise ServiceValidationError(
+                        f"Failed to download cover (HTTP {resp.status})"
+                    )
+                image_data = await resp.read()
+    except aiohttp.ClientError as ex:
+        raise ServiceValidationError(f"Failed to download cover: {ex}")
+
+    # Save to a temporary file in the config directory
+    config_dir = Path(hass.config.config_dir)
+    cache_dir = config_dir / ".ipixelcolor_covers"
+    cache_dir.mkdir(exist_ok=True)
+
+    # Use title or timestamp as filename
+    title = state.attributes.get("media_title", "unknown")
+    filename = f"{title.replace(' ', '_')[:50]}.jpg"
+    filepath = cache_dir / filename
+
+    filepath.write_bytes(image_data)
+    _LOGGER.info(f"Saved media cover to {filepath}")
+
+    return str(filepath)
+
+
 # ---------------------------------------------------------------------------
 # Setup / teardown
 # ---------------------------------------------------------------------------
@@ -162,7 +236,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Remove services when no more entries are loaded
     if not hass.data.get(DOMAIN):
-        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_IMAGE, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
+        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_IMAGE, SERVICE_SEND_MEDIA_COVER, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
             hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok
@@ -210,7 +284,22 @@ def _register_services(hass: HomeAssistant) -> None:
             color=call.data["color"],
         )
 
+    async def handle_send_media_cover(call: ServiceCall) -> None:
+        ipixel_entity = call.data["ipixel_entity_id"]
+        media_player_entity = call.data["media_player_entity_id"]
+        save_slot = call.data["save_slot"]
+        
+        # Fetch and download the cover from Music Assistant
+        cover_path = await _fetch_and_save_media_cover(hass, media_player_entity)
+        
+        # Send the cover to the iPixel device
+        coord = _coordinator_for_entity(hass, ipixel_entity)
+        await coord.async_send_image(path=cover_path, save_slot=save_slot)
+        
+        _LOGGER.info(f"Sent media cover to {ipixel_entity}")
+
     hass.services.async_register(DOMAIN, SERVICE_SEND_TEXT, handle_send_text, schema=SEND_TEXT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SEND_IMAGE, handle_send_image, schema=SEND_IMAGE_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SEND_MEDIA_COVER, handle_send_media_cover, schema=SEND_MEDIA_COVER_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_CLOCK, handle_set_clock, schema=SET_CLOCK_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_PIXEL, handle_set_pixel, schema=SET_PIXEL_SCHEMA)

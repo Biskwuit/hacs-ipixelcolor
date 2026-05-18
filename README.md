@@ -174,6 +174,23 @@ automation:
           value: 20
 ```
 
+Display the current album cover on the LED matrix when music starts:
+
+```yaml
+automation:
+  - alias: "iPixel — Show album cover"
+    trigger:
+      - platform: state
+        entity_id: media_player.music_assistant
+        to: playing
+    action:
+      - service: ipixelcolor.send_media_cover
+        data:
+          ipixel_entity_id: light.ipixel_color
+          media_player_entity_id: media_player.music_assistant
+          save_slot: 0
+```
+
 ---
 
 ## Troubleshooting
