@@ -63,6 +63,7 @@ class IPixelColorCoordinator(DataUpdateCoordinator):
         async with self._lock:
             if self._connected:
                 return
+
             _LOGGER.info("Connecting to iPixel Color at %s", self.address)
             self._client = AsyncClient(self.address)
             await self._client.connect()
@@ -105,29 +106,51 @@ class IPixelColorCoordinator(DataUpdateCoordinator):
             "connected": self._connected,
         }
 
+    async def _execute_with_reconnect(self, coro_func) -> Any:
+        """
+        Execute a command. If it fails with a connection error,
+        reconnect and retry once.
+        """
+        try:
+            async with self._lock:
+                return await coro_func()
+        except (ConnectionError, BrokenPipeError, OSError, RuntimeError) as ex:
+            _LOGGER.warning("Connection error during command: %s. Attempting reconnect...", ex)
+            self._connected = False
+            self._client = None
+
+            # Try to reconnect
+            try:
+                await self.async_connect()
+                async with self._lock:
+                    return await coro_func()
+            except Exception as retry_ex:
+                _LOGGER.error("Command failed after reconnect: %s", retry_ex)
+                raise retry_ex
+
     async def async_set_power(self, on: bool) -> None:
         """Set device power state."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.set_power(on)
-            self._power = on
-            self.async_update_listeners()
+        await self._execute_with_reconnect(
+            lambda: self._client.set_power(on)
+        )
+        self._power = on
+        self.async_update_listeners()
 
     async def async_set_brightness(self, level: int) -> None:
         """Set device brightness (0-100)."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.set_brightness(level)
-            self._brightness = level
-            self.async_update_listeners()
+        await self._execute_with_reconnect(
+            lambda: self._client.set_brightness(level)
+        )
+        self._brightness = level
+        self.async_update_listeners()
 
     async def async_set_orientation(self, orientation: int) -> None:
         """Set device orientation (0-3)."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.set_orientation(orientation)
-            self._orientation = orientation
-            self.async_update_listeners()
+        await self._execute_with_reconnect(
+            lambda: self._client.set_orientation(orientation)
+        )
+        self._orientation = orientation
+        self.async_update_listeners()
 
     async def async_send_text(
         self,
@@ -140,9 +163,8 @@ class IPixelColorCoordinator(DataUpdateCoordinator):
         save_slot: int = 0,
     ) -> None:
         """Send text to the device."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.send_text(
+        await self._execute_with_reconnect(
+            lambda: self._client.send_text(
                 text=text,
                 animation=animation,
                 speed=speed,
@@ -151,12 +173,13 @@ class IPixelColorCoordinator(DataUpdateCoordinator):
                 rainbow_mode=rainbow_mode,
                 save_slot=save_slot,
             )
+        )
 
     async def async_send_image(self, path: str, save_slot: int = 0) -> None:
         """Send an image or GIF to the device."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.send_image(path=path, save_slot=save_slot)
+        await self._execute_with_reconnect(
+            lambda: self._client.send_image(path=path, save_slot=save_slot)
+        )
 
     async def async_set_clock(
         self,
@@ -165,28 +188,22 @@ class IPixelColorCoordinator(DataUpdateCoordinator):
         format_24: bool = True,
     ) -> None:
         """Set clock mode."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.set_clock_mode(
+        await self._execute_with_reconnect(
+            lambda: self._client.set_clock_mode(
                 style=style,
                 show_date=show_date,
                 format_24=format_24,
             )
+        )
 
     async def async_set_pixel(self, x: int, y: int, color: str) -> None:
         """Set an individual pixel color."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.set_pixel(x=x, y=y, color=color)
+        await self._execute_with_reconnect(
+            lambda: self._client.set_pixel(x=x, y=y, color=color)
+        )
 
     async def async_clear(self) -> None:
         """Clear the device EEPROM."""
-        await self._ensure_connected()
-        async with self._lock:
-            await self._client.clear()
-
-    async def _ensure_connected(self) -> None:
-        """Reconnect if disconnected."""
-        if not self._connected:
-            _LOGGER.info("Reconnecting to %s...", self.address)
-            await self.async_connect()
+        await self._execute_with_reconnect(
+            lambda: self._client.clear()
+        )
