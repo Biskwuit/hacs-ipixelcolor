@@ -9,50 +9,56 @@ from pathlib import Path
 def generate_weather_display(
     condition: str,
     temperature: float,
-    location: str = "",
-    show_location: bool = False,
+    show_time: bool = False,
+    time_str: str = "",
 ) -> str:
     """
-    Generate a weather display image with temperature and weather icon.
+    Generate a compact weather display image for 32x32 LED matrix.
     
     Args:
         condition: Weather condition (sunny, rainy, cloudy, snowy, stormy, etc.)
         temperature: Temperature in Celsius or Fahrenheit
-        location: Optional location name
-        show_location: Whether to show the location text
+        show_time: Whether to show time
+        time_str: Time string to display (HH:MM)
     
     Returns:
         Path to the generated PNG file
     """
-    # Image size for 32x8 LED matrix (4:1 ratio, 256x64)
-    width, height = 256, 64
+    # 32x32 image for the LED matrix
+    width, height = 32, 32
     img = Image.new("RGB", (width, height), color="#000000")
     draw = ImageDraw.Draw(img)
     
-    # Try to use a nice font, fallback to default
+    # Try to load small fonts
     try:
-        font_large = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-        font_small = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
+        # Large font for temperature (16-18px)
+        font_temp = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 14
+        )
+        # Small font for time/text (8-10px)
+        font_small = ImageFont.truetype(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 7
+        )
     except (OSError, IOError):
-        # Fallback to default font
-        font_large = ImageFont.load_default()
+        # Fallback: use bitmap font
+        font_temp = ImageFont.load_default()
         font_small = ImageFont.load_default()
     
-    # Draw weather icon on the left (32x32 area)
-    _draw_weather_icon(draw, condition, x=4, y=16)
+    # Draw small weather icon (12x12) in top-left corner
+    _draw_small_weather_icon(draw, condition, x=1, y=2, size=10)
     
-    # Draw temperature on the right (large text)
-    temp_str = f"{int(temperature)}°"
-    draw.text((100, 8), temp_str, fill="#ffffff", font=font_large)
+    # Draw temperature large (right side)
+    # Format: "26°" or "26°\nC" depending on space
+    temp_text = f"{int(temperature)}°"
+    draw.text((14, 6), temp_text, fill="#ffff00", font=font_temp)
     
-    # Draw condition text (smaller)
-    condition_text = condition.replace("-", " ").title()[:20]
-    draw.text((100, 56), condition_text, fill="#cccccc", font=font_small)
-    
-    # Optional: Draw location
-    if show_location and location:
-        location_text = location[:15]
-        draw.text((100, 36), location_text, fill="#aaaaaa", font=font_small)
+    # Draw time or secondary info (bottom)
+    if show_time and time_str:
+        draw.text((14, 22), time_str, fill="#00ff00", font=font_small)
+    else:
+        # Draw condition abbreviation (short)
+        condition_short = _get_condition_abbreviation(condition)
+        draw.text((14, 22), condition_short, fill="#cccccc", font=font_small)
     
     # Save to temp file
     temp_dir = Path(tempfile.gettempdir()) / "ipixelcolor_weather"
@@ -63,221 +69,109 @@ def generate_weather_display(
     return str(filepath)
 
 
-def _draw_weather_icon(draw, condition: str, x: int = 4, y: int = 16, size: int = 32) -> None:
-    """Draw a small weather icon at position (x, y)."""
+def _get_condition_abbreviation(condition: str) -> str:
+    """Get short text for weather condition."""
     condition_lower = condition.lower().strip()
     
     if any(c in condition_lower for c in ["sunny", "clear"]):
-        _draw_sun(draw, x, y, size)
+        return "SUN"
     elif any(c in condition_lower for c in ["cloud", "overcast"]):
-        _draw_cloud(draw, x, y, size)
+        return "CLO"
     elif any(c in condition_lower for c in ["rain", "pouring"]):
-        _draw_rain(draw, x, y, size)
+        return "RAN"
     elif any(c in condition_lower for c in ["snow"]):
-        _draw_snow(draw, x, y, size)
+        return "SNW"
     elif any(c in condition_lower for c in ["thunder", "lightning"]):
-        _draw_storm(draw, x, y, size)
+        return "STM"
     elif any(c in condition_lower for c in ["fog", "mist"]):
-        _draw_fog(draw, x, y, size)
+        return "FOG"
     elif any(c in condition_lower for c in ["wind"]):
-        _draw_wind(draw, x, y, size)
+        return "WND"
     else:
-        _draw_cloud(draw, x, y, size)  # Default to cloud
+        return "..."
 
 
-def _draw_sun(draw, x: int, y: int, size: int) -> None:
-    """Draw a sun icon."""
+def _draw_small_weather_icon(draw, condition: str, x: int = 1, y: int = 2, size: int = 10) -> None:
+    """Draw a small weather icon (10x10 pixels)."""
+    condition_lower = condition.lower().strip()
+    
+    if any(c in condition_lower for c in ["sunny", "clear"]):
+        _draw_small_sun(draw, x, y, size)
+    elif any(c in condition_lower for c in ["cloud", "overcast"]):
+        _draw_small_cloud(draw, x, y, size)
+    elif any(c in condition_lower for c in ["rain", "pouring"]):
+        _draw_small_rain(draw, x, y, size)
+    elif any(c in condition_lower for c in ["snow"]):
+        _draw_small_snow(draw, x, y, size)
+    elif any(c in condition_lower for c in ["thunder", "lightning"]):
+        _draw_small_storm(draw, x, y, size)
+    elif any(c in condition_lower for c in ["fog", "mist"]):
+        _draw_small_fog(draw, x, y, size)
+    else:
+        _draw_small_cloud(draw, x, y, size)
+
+
+def _draw_small_sun(draw, x: int, y: int, size: int) -> None:
+    """Draw a small sun (3px diameter)."""
     cx = x + size // 2
     cy = y + size // 2
-    radius = size // 4
-    
-    # Sun circle
-    draw.ellipse(
-        [cx - radius, cy - radius, cx + radius, cy + radius],
-        fill="#ffff00",
-        outline="#ffaa00",
-        width=1,
-    )
-    
-    # Rays
-    ray_len = size // 5
-    import math
-    for angle in [0, 45, 90, 135, 180, 225, 270, 315]:
-        rad = math.radians(angle)
-        x1 = cx + (radius + 2) * math.cos(rad)
-        y1 = cy + (radius + 2) * math.sin(rad)
-        x2 = cx + (radius + ray_len) * math.cos(rad)
-        y2 = cy + (radius + ray_len) * math.sin(rad)
-        draw.line([(x1, y1), (x2, y2)], fill="#ffff00", width=2)
+    r = 2
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill="#ffff00")
 
 
-def _draw_cloud(draw, x: int, y: int, size: int) -> None:
-    """Draw a cloud icon."""
+def _draw_small_cloud(draw, x: int, y: int, size: int) -> None:
+    """Draw a small cloud."""
     cx = x + size // 2
     cy = y + size // 2
-    scale = size / 32  # Scale from 32px base
-    
-    # Cloud shape (multiple overlapping circles)
-    draw.ellipse(
-        [cx - 12 * scale, cy - 4 * scale, cx - 4 * scale, cy + 4 * scale],
-        fill="#cccccc",
-        outline="#999999",
-        width=1,
-    )
-    draw.ellipse(
-        [cx - 6 * scale, cy - 8 * scale, cx + 6 * scale, cy + 4 * scale],
-        fill="#cccccc",
-        outline="#999999",
-        width=1,
-    )
-    draw.ellipse(
-        [cx + 4 * scale, cy - 4 * scale, cx + 12 * scale, cy + 4 * scale],
-        fill="#cccccc",
-        outline="#999999",
-        width=1,
-    )
+    # Three overlapping small circles
+    draw.ellipse([cx - 3, cy - 1, cx - 1, cy + 1], fill="#cccccc")
+    draw.ellipse([cx - 1, cy - 2, cx + 1, cy], fill="#cccccc")
+    draw.ellipse([cx + 1, cy - 1, cx + 3, cy + 1], fill="#cccccc")
 
 
-def _draw_rain(draw, x: int, y: int, size: int) -> None:
-    """Draw a rain icon (cloud with drops)."""
+def _draw_small_rain(draw, x: int, y: int, size: int) -> None:
+    """Draw a small rain cloud."""
     cx = x + size // 2
     cy = y + size // 2
-    scale = size / 32
-    
     # Cloud
-    draw.ellipse(
-        [cx - 12 * scale, cy - 6 * scale, cx - 4 * scale, cy + 2 * scale],
-        fill="#6666ff",
-        outline="#0000aa",
-        width=1,
-    )
-    draw.ellipse(
-        [cx - 6 * scale, cy - 10 * scale, cx + 6 * scale, cy + 2 * scale],
-        fill="#6666ff",
-        outline="#0000aa",
-        width=1,
-    )
-    draw.ellipse(
-        [cx + 4 * scale, cy - 6 * scale, cx + 12 * scale, cy + 2 * scale],
-        fill="#6666ff",
-        outline="#0000aa",
-        width=1,
-    )
-    
-    # Raindrops
-    drop_y = cy + 8 * scale
-    for drop_x in [cx - 8 * scale, cx, cx + 8 * scale]:
-        draw.ellipse(
-            [drop_x - 2 * scale, drop_y, drop_x + 2 * scale, drop_y + 6 * scale],
-            fill="#0000ff",
-        )
+    draw.ellipse([cx - 3, cy - 2, cx - 1, cy], fill="#6666ff")
+    draw.ellipse([cx - 1, cy - 3, cx + 1, cy], fill="#6666ff")
+    draw.ellipse([cx + 1, cy - 2, cx + 3, cy], fill="#6666ff")
+    # Rain drops
+    draw.point((cx - 2, cy + 1), fill="#0000ff")
+    draw.point((cx + 1, cy + 1), fill="#0000ff")
 
 
-def _draw_snow(draw, x: int, y: int, size: int) -> None:
-    """Draw a snow icon."""
+def _draw_small_snow(draw, x: int, y: int, size: int) -> None:
+    """Draw a small snow cloud."""
     cx = x + size // 2
     cy = y + size // 2
-    scale = size / 32
-    
     # Cloud
-    draw.ellipse(
-        [cx - 12 * scale, cy - 6 * scale, cx - 4 * scale, cy + 2 * scale],
-        fill="#ffffff",
-        outline="#cccccc",
-        width=1,
-    )
-    draw.ellipse(
-        [cx - 6 * scale, cy - 10 * scale, cx + 6 * scale, cy + 2 * scale],
-        fill="#ffffff",
-        outline="#cccccc",
-        width=1,
-    )
-    draw.ellipse(
-        [cx + 4 * scale, cy - 6 * scale, cx + 12 * scale, cy + 2 * scale],
-        fill="#ffffff",
-        outline="#cccccc",
-        width=1,
-    )
-    
-    # Snowflakes
-    import math
-    snowflake_y = cy + 8 * scale
-    for snowflake_x in [cx - 8 * scale, cx, cx + 8 * scale]:
-        for angle in range(0, 360, 60):
-            rad = math.radians(angle)
-            x1 = snowflake_x + 3 * scale * math.cos(rad)
-            y1 = snowflake_y + 3 * scale * math.sin(rad)
-            draw.line([(snowflake_x, snowflake_y), (x1, y1)], fill="#ffffff", width=1)
+    draw.ellipse([cx - 3, cy - 2, cx - 1, cy], fill="#ffffff")
+    draw.ellipse([cx - 1, cy - 3, cx + 1, cy], fill="#ffffff")
+    draw.ellipse([cx + 1, cy - 2, cx + 3, cy], fill="#ffffff")
+    # Snow
+    draw.point((cx - 2, cy + 1), fill="#ffffff")
+    draw.point((cx + 1, cy + 1), fill="#ffffff")
 
 
-def _draw_storm(draw, x: int, y: int, size: int) -> None:
-    """Draw a storm icon (dark cloud with lightning)."""
+def _draw_small_storm(draw, x: int, y: int, size: int) -> None:
+    """Draw a small dark cloud with lightning."""
     cx = x + size // 2
     cy = y + size // 2
-    scale = size / 32
-    
     # Dark cloud
-    draw.ellipse(
-        [cx - 12 * scale, cy - 6 * scale, cx - 4 * scale, cy + 2 * scale],
-        fill="#444444",
-        outline="#222222",
-        width=1,
-    )
-    draw.ellipse(
-        [cx - 6 * scale, cy - 10 * scale, cx + 6 * scale, cy + 2 * scale],
-        fill="#444444",
-        outline="#222222",
-        width=1,
-    )
-    draw.ellipse(
-        [cx + 4 * scale, cy - 6 * scale, cx + 12 * scale, cy + 2 * scale],
-        fill="#444444",
-        outline="#222222",
-        width=1,
-    )
-    
-    # Lightning bolt
-    lightning_points = [
-        (cx + 2 * scale, cy + 4 * scale),
-        (cx, cy + 8 * scale),
-        (cx + 4 * scale, cy + 8 * scale),
-        (cx + 2 * scale, cy + 12 * scale),
-    ]
-    draw.polygon(lightning_points, fill="#ffff00")
+    draw.ellipse([cx - 3, cy - 2, cx - 1, cy], fill="#444444")
+    draw.ellipse([cx - 1, cy - 3, cx + 1, cy], fill="#444444")
+    draw.ellipse([cx + 1, cy - 2, cx + 3, cy], fill="#444444")
+    # Lightning
+    draw.line([(cx, cy + 1), (cx - 1, cy + 2)], fill="#ffff00", width=1)
+    draw.line([(cx - 1, cy + 2), (cx + 1, cy + 3)], fill="#ffff00", width=1)
 
 
-def _draw_fog(draw, x: int, y: int, size: int) -> None:
-    """Draw a fog icon (horizontal lines)."""
+def _draw_small_fog(draw, x: int, y: int, size: int) -> None:
+    """Draw a small fog."""
     cx = x + size // 2
     cy = y + size // 2
-    scale = size / 32
-    
-    for i in range(3):
-        y_offset = cy - 8 * scale + (i * 6 * scale)
-        draw.rectangle(
-            [cx - 12 * scale, y_offset, cx + 12 * scale, y_offset + 4 * scale],
-            fill="#999999",
-            outline="#666666",
-        )
-
-
-def _draw_wind(draw, x: int, y: int, size: int) -> None:
-    """Draw a wind icon."""
-    cx = x + size // 2
-    cy = y + size // 2
-    scale = size / 32
-    
-    # Three curved wind lines
-    for i in range(3):
-        y_offset = cy - 8 * scale + (i * 6 * scale)
-        # Draw arc approximation with multiple lines
-        for dx in range(-12, 13, 2):
-            import math
-            curve_y = y_offset + math.sin(dx / 4) * 3 * scale
-            if dx == -12:
-                x1, y1 = cx + dx * scale, y_offset
-            draw.line(
-                [(cx + dx * scale, curve_y), (cx + (dx + 2) * scale, curve_y)],
-                fill="#cccccc",
-                width=2,
-            )
+    # Horizontal lines
+    draw.line([cx - 4, cy - 1, cx + 2, cy - 1], fill="#999999", width=1)
+    draw.line([cx - 4, cy + 1, cx + 2, cy + 1], fill="#999999", width=1)
