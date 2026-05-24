@@ -165,6 +165,55 @@ send_weather_icon:
           step: 1
           mode: box
 
+send_weather_display:
+  name: Afficher la météo complète
+  description: Génère et affiche la météo avec température, icône et conditions sur la matrice LED.
+  fields:
+    ipixel_entity_id:
+      name: Entité iPixel
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+    weather_entity_id:
+      name: Entité météo
+      description: L'entité weather (ex. OpenWeatherMap) dont récupérer les conditions.
+      required: true
+      example: "weather.home"
+      selector:
+        entity:
+          domain: weather
+    temperature_entity_id:
+      name: Entité température (optionnel)
+      description: Entité capteur de température spécifique. Si non fournie, utilise l'attribut 'temperature' de la météo.
+      example: "sensor.temperature"
+      selector:
+        entity:
+          domain: sensor
+    location:
+      name: Lieu (optionnel)
+      description: Nom du lieu à afficher. Si vide, utilise le nom de l'entité météo.
+      example: "San Francisco"
+      selector:
+        text:
+    show_location:
+      name: Afficher le lieu
+      description: Affiche le nom du lieu en bas de l'écran.
+      default: false
+      selector:
+        boolean:
+    save_slot:
+      name: Emplacement de sauvegarde
+      description: Slot mémoire où sauvegarder l'affichage (0 à 9).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 9
+          step: 1
+          mode: box
+
 set_clock:
   name: Mode horloge
   description: Basculer l'appareil en mode affichage horloge.
