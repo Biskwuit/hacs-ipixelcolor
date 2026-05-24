@@ -76,6 +76,118 @@ send_text:
           step: 1
           mode: box
 
+send_text_advanced:
+  name: Envoyer du texte avancé
+  description: Afficher du texte avec contrôle pixel-parfait des dimensions et positions.
+  fields:
+    entity_id:
+      name: Entité
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+    text:
+      name: Texte
+      description: Le message à afficher.
+      required: true
+      example: "26°C"
+      selector:
+        text:
+    x:
+      name: Position X
+      description: Position horizontale de départ (pixels depuis la gauche).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 32
+          step: 1
+          mode: box
+    y:
+      name: Position Y
+      description: Position verticale de départ (pixels depuis le haut).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 32
+          step: 1
+          mode: box
+    max_width:
+      name: Largeur max par caractère
+      description: Largeur maximale en pixels pour chaque caractère.
+      default: 4
+      selector:
+        number:
+          min: 1
+          max: 32
+          step: 1
+          mode: box
+    max_height:
+      name: Hauteur max par caractère
+      description: Hauteur maximale en pixels pour chaque caractère.
+      default: 7
+      selector:
+        number:
+          min: 1
+          max: 32
+          step: 1
+          mode: box
+    text_color:
+      name: Couleur du texte
+      description: Couleur en hexadécimal (sans #). Ex : ffffff pour blanc.
+      default: "ffffff"
+      example: "ffff00"
+      selector:
+        text:
+    bg_color:
+      name: Couleur de fond
+      description: Couleur de fond en hexadécimal (sans #). Ex : 000000 pour noir.
+      default: "000000"
+      example: "000000"
+      selector:
+        text:
+    font_size:
+      name: Taille de police (optionnel)
+      description: Taille de la police en pixels. Auto-calculée si non fournie.
+      selector:
+        number:
+          min: 5
+          max: 64
+          step: 1
+          mode: box
+    matrix_width:
+      name: Largeur matrice
+      description: Largeur totale de la matrice en pixels.
+      default: 32
+      selector:
+        number:
+          min: 8
+          max: 256
+          step: 1
+          mode: box
+    matrix_height:
+      name: Hauteur matrice
+      description: Hauteur totale de la matrice en pixels.
+      default: 32
+      selector:
+        number:
+          min: 8
+          max: 256
+          step: 1
+          mode: box
+    save_slot:
+      name: Emplacement de sauvegarde
+      description: Slot mémoire où sauvegarder le contenu (0 à 9).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 9
+          step: 1
+          mode: box
+
 send_image:
   name: Envoyer une image
   description: Afficher une image ou un GIF animé sur la matrice LED.
@@ -109,8 +221,8 @@ send_media_cover:
   name: Envoyer la cover du lecteur musical
   description: Télécharge et affiche la cover de l'album actuellement en lecture sur la matrice LED.
   fields:
-    ipixel_entity_id:
-      name: Entité iPixel
+    entity_id:
+      name: Entité
       description: L'entité lumière iPixel Color cible.
       required: true
       selector:
@@ -127,85 +239,6 @@ send_media_cover:
     save_slot:
       name: Emplacement de sauvegarde
       description: Slot mémoire où sauvegarder la cover (0 à 9).
-      default: 0
-      selector:
-        number:
-          min: 0
-          max: 9
-          step: 1
-          mode: box
-
-send_weather_icon:
-  name: Envoyer l'icône météo
-  description: Génère et affiche une icône météo sur la matrice LED en fonction des conditions actuelles.
-  fields:
-    ipixel_entity_id:
-      name: Entité iPixel
-      description: L'entité lumière iPixel Color cible.
-      required: true
-      selector:
-        entity:
-          domain: light
-    weather_entity_id:
-      name: Entité météo
-      description: L'entité weather (ex. OpenWeatherMap) dont récupérer les conditions.
-      required: true
-      example: "weather.home"
-      selector:
-        entity:
-          domain: weather
-    save_slot:
-      name: Emplacement de sauvegarde
-      description: Slot mémoire où sauvegarder l'icône (0 à 9).
-      default: 0
-      selector:
-        number:
-          min: 0
-          max: 9
-          step: 1
-          mode: box
-
-send_weather_display:
-  name: Afficher la météo complète
-  description: Génère et affiche la météo avec température, icône et conditions sur la matrice LED.
-  fields:
-    ipixel_entity_id:
-      name: Entité iPixel
-      description: L'entité lumière iPixel Color cible.
-      required: true
-      selector:
-        entity:
-          domain: light
-    weather_entity_id:
-      name: Entité météo
-      description: L'entité weather (ex. OpenWeatherMap) dont récupérer les conditions.
-      required: true
-      example: "weather.home"
-      selector:
-        entity:
-          domain: weather
-    temperature_entity_id:
-      name: Entité température (optionnel)
-      description: Entité capteur de température spécifique. Si non fournie, utilise l'attribut 'temperature' de la météo.
-      example: "sensor.temperature"
-      selector:
-        entity:
-          domain: sensor
-    location:
-      name: Lieu (optionnel)
-      description: Nom du lieu à afficher. Si vide, utilise le nom de l'entité météo.
-      example: "San Francisco"
-      selector:
-        text:
-    show_location:
-      name: Afficher le lieu
-      description: Affiche le nom du lieu en bas de l'écran.
-      default: false
-      selector:
-        boolean:
-    save_slot:
-      name: Emplacement de sauvegarde
-      description: Slot mémoire où sauvegarder l'affichage (0 à 9).
       default: 0
       selector:
         number:

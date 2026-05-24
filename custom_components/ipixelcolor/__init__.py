@@ -21,8 +21,7 @@ from .const import (
     SERVICE_SEND_IMAGE,
     SERVICE_SEND_MEDIA_COVER,
     SERVICE_SEND_TEXT,
-    SERVICE_SEND_WEATHER_DISPLAY,
-    SERVICE_SEND_WEATHER_ICON,
+    SERVICE_SEND_TEXT_ADVANCED,
     SERVICE_SET_CLOCK,
     SERVICE_SET_PIXEL,
 )
@@ -95,23 +94,19 @@ SEND_MEDIA_COVER_SCHEMA = vol.Schema(
     }
 )
 
-SEND_WEATHER_ICON_SCHEMA = vol.Schema(
+SEND_TEXT_ADVANCED_SCHEMA = vol.Schema(
     {
-        vol.Required("ipixel_entity_id"): cv.entity_id,
-        vol.Required("weather_entity_id"): cv.entity_id,
-        vol.Optional("save_slot", default=0): vol.All(
-            vol.Coerce(int), vol.Range(min=0, max=9)
-        ),
-    }
-)
-
-SEND_WEATHER_DISPLAY_SCHEMA = vol.Schema(
-    {
-        vol.Required("ipixel_entity_id"): cv.entity_id,
-        vol.Required("weather_entity_id"): cv.entity_id,
-        vol.Optional("temperature_entity_id"): cv.entity_id,
-        vol.Optional("location", default=""): cv.string,
-        vol.Optional("show_location", default=False): cv.boolean,
+        vol.Required("entity_id"): cv.entity_id,
+        vol.Required("text"): cv.string,
+        vol.Optional("x", default=0): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("y", default=0): vol.All(vol.Coerce(int), vol.Range(min=0)),
+        vol.Optional("max_width", default=4): vol.All(vol.Coerce(int), vol.Range(min=1, max=32)),
+        vol.Optional("max_height", default=7): vol.All(vol.Coerce(int), vol.Range(min=1, max=32)),
+        vol.Optional("text_color", default="ffffff"): cv.string,
+        vol.Optional("bg_color", default="000000"): cv.string,
+        vol.Optional("font_size"): vol.All(vol.Coerce(int), vol.Range(min=5, max=64)),
+        vol.Optional("matrix_width", default=32): vol.All(vol.Coerce(int), vol.Range(min=8)),
+        vol.Optional("matrix_height", default=32): vol.All(vol.Coerce(int), vol.Range(min=8)),
         vol.Optional("save_slot", default=0): vol.All(
             vol.Coerce(int), vol.Range(min=0, max=9)
         ),
@@ -261,7 +256,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Remove services when no more entries are loaded
     if not hass.data.get(DOMAIN):
-        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_IMAGE, SERVICE_SEND_MEDIA_COVER, SERVICE_SEND_WEATHER_ICON, SERVICE_SEND_WEATHER_DISPLAY, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
+        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_TEXT_ADVANCED, SERVICE_SEND_IMAGE, SERVICE_SEND_MEDIA_COVER, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
             hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok
@@ -323,94 +318,45 @@ def _register_services(hass: HomeAssistant) -> None:
         
         _LOGGER.info(f"Sent media cover to {ipixel_entity}")
 
-    async def handle_send_weather_icon(call: ServiceCall) -> None:
-        from .weather_icons import get_weather_icon
+    async def handle_send_text_advanced(call: ServiceCall) -> None:
+        from .text_renderer import render_text_advanced
         
-        ipixel_entity = call.data["ipixel_entity_id"]
-        weather_entity = call.data["weather_entity_id"]
-        save_slot = call.data["save_slot"]
+        entity_id = call.data["entity_id"]
+        text = call.data["text"]
+        x = call.data.get("x", 0)
+        y = call.data.get("y", 0)
+        max_width = call.data.get("max_width", 4)
+        max_height = call.data.get("max_height", 7)
+        text_color = call.data.get("text_color", "ffffff")
+        bg_color = call.data.get("bg_color", "000000")
+        font_size = call.data.get("font_size")
+        matrix_width = call.data.get("matrix_width", 32)
+        matrix_height = call.data.get("matrix_height", 32)
+        save_slot = call.data.get("save_slot", 0)
         
-        # Get weather state
-        state = hass.states.get(weather_entity)
-        if state is None:
-            raise ServiceValidationError(
-                f"Weather entity '{weather_entity}' not found."
-            )
-        
-        condition = state.state
-        _LOGGER.info(f"Weather condition: {condition}")
-        
-        # Generate icon for the condition
-        icon_path = get_weather_icon(condition)
-        
-        # Send the icon to the iPixel device
-        coord = _coordinator_for_entity(hass, ipixel_entity)
-        await coord.async_send_image(path=icon_path, save_slot=save_slot)
-        
-        _LOGGER.info(f"Sent weather icon ({condition}) to {ipixel_entity}")
-
-    async def handle_send_weather_display(call: ServiceCall) -> None:
-        from .weather_display import generate_weather_display
-        
-        ipixel_entity = call.data["ipixel_entity_id"]
-        weather_entity = call.data["weather_entity_id"]
-        temperature_entity = call.data.get("temperature_entity_id")
-        location = call.data.get("location", "")
-        show_location = call.data.get("show_location", False)
-        save_slot = call.data["save_slot"]
-        
-        # Get weather state
-        state = hass.states.get(weather_entity)
-        if state is None:
-            raise ServiceValidationError(
-                f"Weather entity '{weather_entity}' not found."
-            )
-        
-        condition = state.state
-        
-        # Get temperature from dedicated entity or from weather attributes
-        temperature = None
-        if temperature_entity:
-            temp_state = hass.states.get(temperature_entity)
-            if temp_state:
-                try:
-                    temperature = float(temp_state.state)
-                except ValueError:
-                    _LOGGER.warning(f"Could not parse temperature from {temperature_entity}")
-        
-        # Fallback: try to get temperature from weather entity attributes
-        if temperature is None:
-            temperature = state.attributes.get("temperature")
-        
-        if temperature is None:
-            raise ServiceValidationError(
-                f"No temperature found. Provide temperature_entity_id or ensure weather entity has 'temperature' attribute."
-            )
-        
-        # Get location if not provided
-        if not location and "friendly_name" in state.attributes:
-            location = state.attributes["friendly_name"]
-        
-        _LOGGER.info(f"Weather display: {condition}, {temperature}°, location: {location}")
-        
-        # Generate display image
-        display_path = generate_weather_display(
-            condition=condition,
-            temperature=temperature,
-            location=location,
-            show_location=show_location,
+        # Render text
+        text_path = render_text_advanced(
+            text=text,
+            x=x,
+            y=y,
+            max_width=max_width,
+            max_height=max_height,
+            text_color=text_color,
+            bg_color=bg_color,
+            font_size=font_size,
+            matrix_width=matrix_width,
+            matrix_height=matrix_height,
         )
         
-        # Send to iPixel device
-        coord = _coordinator_for_entity(hass, ipixel_entity)
-        await coord.async_send_image(path=display_path, save_slot=save_slot)
+        # Send to device
+        coord = _coordinator_for_entity(hass, entity_id)
+        await coord.async_send_image(path=text_path, save_slot=save_slot)
         
-        _LOGGER.info(f"Sent weather display to {ipixel_entity}")
+        _LOGGER.info(f"Sent advanced text to {entity_id}: '{text}'")
 
     hass.services.async_register(DOMAIN, SERVICE_SEND_TEXT, handle_send_text, schema=SEND_TEXT_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SEND_TEXT_ADVANCED, handle_send_text_advanced, schema=SEND_TEXT_ADVANCED_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SEND_IMAGE, handle_send_image, schema=SEND_IMAGE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SEND_MEDIA_COVER, handle_send_media_cover, schema=SEND_MEDIA_COVER_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_SEND_WEATHER_ICON, handle_send_weather_icon, schema=SEND_WEATHER_ICON_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_SEND_WEATHER_DISPLAY, handle_send_weather_display, schema=SEND_WEATHER_DISPLAY_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_CLOCK, handle_set_clock, schema=SET_CLOCK_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_PIXEL, handle_set_pixel, schema=SET_PIXEL_SCHEMA)
