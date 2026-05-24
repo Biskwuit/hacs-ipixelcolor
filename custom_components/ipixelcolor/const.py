@@ -22,6 +22,7 @@ PLATFORMS = ["light", "select", "number", "button"]
 SERVICE_SEND_TEXT = "send_text"
 SERVICE_SEND_IMAGE = "send_image"
 SERVICE_SEND_MEDIA_COVER = "send_media_cover"
+SERVICE_SEND_WEATHER_ICON = "send_weather_icon"
 SERVICE_SET_CLOCK = "set_clock"
 SERVICE_SET_PIXEL = "set_pixel"
 

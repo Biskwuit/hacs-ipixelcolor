@@ -21,6 +21,7 @@ from .const import (
     SERVICE_SEND_IMAGE,
     SERVICE_SEND_MEDIA_COVER,
     SERVICE_SEND_TEXT,
+    SERVICE_SEND_WEATHER_ICON,
     SERVICE_SET_CLOCK,
     SERVICE_SET_PIXEL,
 )
@@ -87,6 +88,16 @@ SEND_MEDIA_COVER_SCHEMA = vol.Schema(
     {
         vol.Required("ipixel_entity_id"): cv.entity_id,
         vol.Required("media_player_entity_id"): cv.entity_id,
+        vol.Optional("save_slot", default=0): vol.All(
+            vol.Coerce(int), vol.Range(min=0, max=9)
+        ),
+    }
+)
+
+SEND_WEATHER_ICON_SCHEMA = vol.Schema(
+    {
+        vol.Required("ipixel_entity_id"): cv.entity_id,
+        vol.Required("weather_entity_id"): cv.entity_id,
         vol.Optional("save_slot", default=0): vol.All(
             vol.Coerce(int), vol.Range(min=0, max=9)
         ),
@@ -236,7 +247,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Remove services when no more entries are loaded
     if not hass.data.get(DOMAIN):
-        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_IMAGE, SERVICE_SEND_MEDIA_COVER, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
+        for svc in (SERVICE_SEND_TEXT, SERVICE_SEND_IMAGE, SERVICE_SEND_MEDIA_COVER, SERVICE_SEND_WEATHER_ICON, SERVICE_SET_CLOCK, SERVICE_SET_PIXEL):
             hass.services.async_remove(DOMAIN, svc)
 
     return unload_ok
@@ -298,8 +309,35 @@ def _register_services(hass: HomeAssistant) -> None:
         
         _LOGGER.info(f"Sent media cover to {ipixel_entity}")
 
+    async def handle_send_weather_icon(call: ServiceCall) -> None:
+        from .weather_icons import get_weather_icon
+        
+        ipixel_entity = call.data["ipixel_entity_id"]
+        weather_entity = call.data["weather_entity_id"]
+        save_slot = call.data["save_slot"]
+        
+        # Get weather state
+        state = hass.states.get(weather_entity)
+        if state is None:
+            raise ServiceValidationError(
+                f"Weather entity '{weather_entity}' not found."
+            )
+        
+        condition = state.state
+        _LOGGER.info(f"Weather condition: {condition}")
+        
+        # Generate icon for the condition
+        icon_path = get_weather_icon(condition)
+        
+        # Send the icon to the iPixel device
+        coord = _coordinator_for_entity(hass, ipixel_entity)
+        await coord.async_send_image(path=icon_path, save_slot=save_slot)
+        
+        _LOGGER.info(f"Sent weather icon ({condition}) to {ipixel_entity}")
+
     hass.services.async_register(DOMAIN, SERVICE_SEND_TEXT, handle_send_text, schema=SEND_TEXT_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SEND_IMAGE, handle_send_image, schema=SEND_IMAGE_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SEND_MEDIA_COVER, handle_send_media_cover, schema=SEND_MEDIA_COVER_SCHEMA)
+    hass.services.async_register(DOMAIN, SERVICE_SEND_WEATHER_ICON, handle_send_weather_icon, schema=SEND_WEATHER_ICON_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_CLOCK, handle_set_clock, schema=SET_CLOCK_SCHEMA)
     hass.services.async_register(DOMAIN, SERVICE_SET_PIXEL, handle_set_pixel, schema=SET_PIXEL_SCHEMA)

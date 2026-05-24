@@ -135,6 +135,36 @@ send_media_cover:
           step: 1
           mode: box
 
+send_weather_icon:
+  name: Envoyer l'icône météo
+  description: Génère et affiche une icône météo sur la matrice LED en fonction des conditions actuelles.
+  fields:
+    ipixel_entity_id:
+      name: Entité iPixel
+      description: L'entité lumière iPixel Color cible.
+      required: true
+      selector:
+        entity:
+          domain: light
+    weather_entity_id:
+      name: Entité météo
+      description: L'entité weather (ex. OpenWeatherMap) dont récupérer les conditions.
+      required: true
+      example: "weather.home"
+      selector:
+        entity:
+          domain: weather
+    save_slot:
+      name: Emplacement de sauvegarde
+      description: Slot mémoire où sauvegarder l'icône (0 à 9).
+      default: 0
+      selector:
+        number:
+          min: 0
+          max: 9
+          step: 1
+          mode: box
+
 set_clock:
   name: Mode horloge
   description: Basculer l'appareil en mode affichage horloge.
