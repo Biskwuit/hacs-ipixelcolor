@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 from PIL import Image, ImageDraw, ImageFont
-import tempfile
-from pathlib import Path
 
 
 def render_text_advanced(
@@ -17,9 +15,10 @@ def render_text_advanced(
     font_size: int | None = None,
     matrix_width: int = 32,
     matrix_height: int = 32,
-) -> str:
+) -> dict[str, list[tuple]]:
     """
     Render text with strict pixel dimension constraints per character.
+    Returns pixel data as a list of (x, y, color) tuples instead of an image file.
     
     Args:
         text: The text to render
@@ -34,9 +33,9 @@ def render_text_advanced(
         matrix_height: Total matrix height in pixels
     
     Returns:
-        Path to the generated PNG file
+        Dictionary with 'pixels' list and 'bg_color'
     """
-    # Create image
+    # Create image in memory to measure text
     img = Image.new("RGB", (matrix_width, matrix_height), color=f"#{bg_color}")
     draw = ImageDraw.Draw(img)
     
@@ -74,11 +73,11 @@ def render_text_advanced(
         
         # Check if character fits within constraints
         if char_width > max_width:
-            # Character is too wide - scale down or skip
+            # Character is too wide - skip
             continue
         
         if char_height > max_height:
-            # Character is too tall - use smaller font
+            # Character is too tall - skip
             continue
         
         # Check if we're out of bounds horizontally
@@ -103,10 +102,24 @@ def render_text_advanced(
         # Move cursor
         current_x += char_width + 1  # 1px spacing between chars
     
-    # Save to temp file
-    temp_dir = Path(tempfile.gettempdir()) / "ipixelcolor_text"
-    temp_dir.mkdir(exist_ok=True)
-    filepath = temp_dir / "text_render.png"
-    img.save(filepath, "PNG")
+    # Extract pixels from the image
+    pixels = []
+    img_data = img.getdata()
+    img_width, img_height = img.size
     
-    return str(filepath)
+    for py in range(img_height):
+        for px in range(img_width):
+            pixel_idx = py * img_width + px
+            pixel_rgb = img_data[pixel_idx]
+            
+            # Convert RGB to hex
+            pixel_hex = f"{pixel_rgb[0]:02x}{pixel_rgb[1]:02x}{pixel_rgb[2]:02x}"
+            
+            # Only add non-background pixels
+            if pixel_hex.lower() != bg_color.lower():
+                pixels.append((px, py, pixel_hex))
+    
+    return {
+        "pixels": pixels,
+        "bg_color": bg_color,
+    }

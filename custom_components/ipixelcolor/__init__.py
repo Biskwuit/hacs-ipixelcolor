@@ -332,10 +332,9 @@ def _register_services(hass: HomeAssistant) -> None:
         font_size = call.data.get("font_size")
         matrix_width = call.data.get("matrix_width", 32)
         matrix_height = call.data.get("matrix_height", 32)
-        save_slot = call.data.get("save_slot", 0)
         
-        # Render text
-        text_path = render_text_advanced(
+        # Render text to pixel data
+        pixel_data = render_text_advanced(
             text=text,
             x=x,
             y=y,
@@ -348,9 +347,17 @@ def _register_services(hass: HomeAssistant) -> None:
             matrix_height=matrix_height,
         )
         
-        # Send to device
         coord = _coordinator_for_entity(hass, entity_id)
-        await coord.async_send_image(path=text_path, save_slot=save_slot)
+        
+        # Set background color first
+        bg_hex = pixel_data["bg_color"]
+        for py in range(matrix_height):
+            for px in range(matrix_width):
+                await coord.async_set_pixel(px, py, bg_hex)
+        
+        # Set text pixels
+        for px, py, color_hex in pixel_data["pixels"]:
+            await coord.async_set_pixel(px, py, color_hex)
         
         _LOGGER.info(f"Sent advanced text to {entity_id}: '{text}'")
 
