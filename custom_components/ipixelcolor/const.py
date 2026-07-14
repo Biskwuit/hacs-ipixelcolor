@@ -20,7 +20,6 @@ PLATFORMS = ["light", "select", "number", "button"]
 
 # Services
 SERVICE_SEND_TEXT = "send_text"
-SERVICE_SEND_TEXT_ADVANCED = "send_text_advanced"
 SERVICE_SEND_IMAGE = "send_image"
 SERVICE_SEND_MEDIA_COVER = "send_media_cover"
 SERVICE_SET_CLOCK = "set_clock"

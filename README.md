@@ -191,22 +191,6 @@ automation:
           save_slot: 0
 ```
 
-Display the current weather condition as an icon:
-
-```yaml
-automation:
-  - alias: "iPixel — Show weather icon"
-    trigger:
-      - platform: state
-        entity_id: weather.home
-    action:
-      - service: ipixelcolor.send_weather_icon
-        data:
-          ipixel_entity_id: light.ipixel_color
-          weather_entity_id: weather.home
-          save_slot: 0
-```
-
 ---
 
 ## Troubleshooting
